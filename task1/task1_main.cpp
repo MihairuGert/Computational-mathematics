@@ -141,7 +141,15 @@ std::vector<double> find_roots(Equation& cubicEquation, MethodSettings& methodSe
             roots.push_back(x3);
             return roots;
         }
+
+        if (value0 > -methodSettings.epsilon && value0 < methodSettings.epsilon &&
+            value1 > -methodSettings.epsilon && value1 < methodSettings.epsilon) {
+            double x1 = (extremum_points[0] + extremum_points[1]) / 2;
+            roots.push_back(x1);
+            return roots;
+        }
     }
+    return {};
 }
 
 int main() {
