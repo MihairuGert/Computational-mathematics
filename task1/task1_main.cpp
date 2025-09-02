@@ -44,23 +44,27 @@ std::vector<double> Equation::solve_quadratic(MethodSettings &methodSettings) co
     return roots;
 }
 
-double dichotomy(Equation& equation, MethodSettings& methodSettings, double a, double b, bool isAInf, bool isBinf) {
+double dichotomy(Equation& equation, MethodSettings& methodSettings, double a, double b, bool isAInf, bool isBInf) {
+    if (isAInf)
+        while (equation.getCubicValue(b)*equation.getCubicValue(a) > 0) {
+            b = a;
+            a -= methodSettings.delta;
+        }
+    if (isBInf) {
+        while (equation.getCubicValue(b)*equation.getCubicValue(a) > 0) {
+            a = b;
+            b += methodSettings.delta;
+        }
+    }
     for (;;) {
         double c = (a + b) / 2;
         double value = equation.getCubicValue(c);
         if (value <= methodSettings.epsilon && value >= -methodSettings.epsilon) {
             return c;
         }
-
-        if (value < -methodSettings.epsilon) {
+        if(equation.getCubicValue(b) * equation.getCubicValue(c) < 0) {
             a = c;
-            if (isBinf)
-                b = b + methodSettings.delta;
-        }
-
-        if (value > methodSettings.epsilon) {
-            if (isAInf)
-                a = a - methodSettings.delta;
+        } else {
             b = c;
         }
     }
