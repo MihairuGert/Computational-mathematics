@@ -45,6 +45,12 @@ std::vector<double> Equation::solve_quadratic(MethodSettings &methodSettings) co
 }
 
 double dichotomy(Equation& equation, MethodSettings& methodSettings, double a, double b, bool isAInf, bool isBInf) {
+    if (isAInf && isBInf) {
+        while (equation.getCubicValue(b)*equation.getCubicValue(a) > 0) {
+            b += methodSettings.delta;
+            a -= methodSettings.delta;
+        }
+    }
     if (isAInf)
         while (equation.getCubicValue(b)*equation.getCubicValue(a) > 0) {
             b = a;
