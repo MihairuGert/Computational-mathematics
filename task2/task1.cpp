@@ -3,65 +3,54 @@
 #include <iostream>
 #include <functional>
 #include <fstream>
+#include <algorithm>
 
 class Matrix {
 private:
     std::vector<std::vector<double>> matrix;
     std::vector<double> rightPart;
-    std::function<double(double x)> f;
-    
-    double h;
-    double a;
-    double b;
+    std::vector<double> x;
+    std::vector<double> f;
+    std::vector<double> h;
     int n;
+    
 public:
-    Matrix(int n, double a, double b);
+    Matrix(std::vector<double> x, std::vector<double> f);
     void printMatrix();
     std::vector<double> prognat();
-    void setFunction(std::function<double(double x)> f);
     void printFunction(std::ofstream& output, std::vector<double>& gamma);
 };
 
-void Matrix::setFunction(std::function<double(double x)> f) {
+Matrix::Matrix(std::vector<double> x, std::vector<double> f) {
+    this->x = x;
     this->f = f;
-    rightPart.resize(n - 2); 
+    this->n = x.size();
     
-    for (int i = 0; i < n - 2; i++) {
-        double x_im1 = a + (i) * h;     
-        double x_i = a + (i + 1) * h;   
-        double x_ip1 = a + (i + 2) * h; 
-        
-        rightPart[i] = (f(x_ip1) - 2*f(x_i) + f(x_im1)) / h;
-    }
-}
-
-Matrix::Matrix(int n, double a, double b) {
-    this->a = a;
-    this->b = b;
-    this->n = n;
-    
-    if (b <= a || n <= 0) {
-        throw 1;
+    h.resize(n - 1);
+    for (int i = 0; i < n - 1; i++) {
+        h[i] = x[i + 1] - x[i];
     }
 
-    h = (b - a) / (n - 1);
-    
     int systemSize = n - 2;
     matrix.resize(systemSize);
     for (int i = 0; i < systemSize; i++) {
         matrix[i].resize(systemSize);
     }
-
+    rightPart.resize(systemSize);
+    
     for (int i = 0; i < systemSize; i++) {
-        for (int j = 0; j < systemSize; j++) {
-            if (i == j) {
-                matrix[i][j] = (4.0 * h) / 6;  
-            } else if (abs(i - j) == 1) {
-                matrix[i][j] = h / 6;  
-            } else {
-                matrix[i][j] = 0.0;
-            }
+        int idx = i + 1;
+        
+        matrix[i][i] = 2.0 * (h[idx - 1] + h[idx]) / 3.0;
+
+        if (i > 0) {
+            matrix[i][i - 1] = h[idx - 1] / 3.0;
         }
+        if (i < systemSize - 1) {
+            matrix[i][i + 1] = h[idx] / 3.0;
+        }
+        
+        rightPart[i] = (f[idx + 1] - f[idx]) / h[idx] - (f[idx] - f[idx - 1]) / h[idx - 1];
     }
 }
 
@@ -70,7 +59,7 @@ void Matrix::printMatrix() {
         for (int j = 0; j < matrix[i].size(); j++) {
             std::cout << matrix[i][j] << " ";
         }
-        std::cout << "\n";
+        std::cout << "| " << rightPart[i] << "\n";
     }
 }
 
@@ -105,54 +94,45 @@ std::vector<double> Matrix::prognat() {
     return x;
 }
 
-double modulus(double x) {
-    return std::abs(x);
-}
-
-double sign(double x) {
-    return x >= 0 ? 1 : -1;
-}
-
 void Matrix::printFunction(std::ofstream& output, std::vector<double>& gamma) {
-    const int numPoints = 100000;
-    double step = (b - a) / numPoints;
+    const int numPoints = 1000;
     
     std::vector<double> fullGamma(n);
-    fullGamma[0] = 0.0; 
+    fullGamma[0] = 0.0;
     for (int i = 0; i < gamma.size(); i++) {
         fullGamma[i + 1] = gamma[i];
     }
-    fullGamma[n - 1] = 0.0; 
+    fullGamma[n - 1] = 0.0;
     
-    for (int i = 0; i <= numPoints; i++) {
-        double x = a + i * step;
-        
-        int j = std::min((int)((x - a) / h), n - 2);
-        if (j < 0) j = 0;
-        
-        double x_j = a + j * h;
-        double x_j1 = a + (j + 1) * h;
-        
-        double term1 = f(x_j) * (x_j1 - x) / h;
-        double term2 = f(x_j1) * (x - x_j) / h;
-        double term3 = fullGamma[j] * (std::pow(x_j1 - x, 3) - h * h * (x_j1 - x)) / (6.0 * h);
-        double term4 = fullGamma[j + 1] * (std::pow(x - x_j, 3) - h * h * (x - x_j)) / (6.0 * h);
-        
-        double s_x = term1 + term2 + term3 + term4;
-        
-        output << x << " " << s_x << "\n";
+    for (int i = 0; i < n - 1; i++) {
+        double a = f[i];
+        double b = (f[i + 1] - f[i]) / h[i] - h[i] * (fullGamma[i + 1] + 2 * fullGamma[i]) / 3.0;
+        double c = fullGamma[i];
+        double d = (fullGamma[i + 1] - fullGamma[i]) / (3.0 * h[i]);
+
+        int pointsPerInterval = numPoints / (n - 1);
+        for (int j = 0; j <= pointsPerInterval; j++) {
+            double t = static_cast<double>(j) / pointsPerInterval;
+            double x_val = x[i] + t * h[i];
+            double dx = x_val - x[i];
+            double s_x = a + b * dx + c * dx * dx + d * dx * dx * dx;
+            
+            output << x_val << " " << s_x << "\n";
+        }
     }
 }
 
 int main() {
-    Matrix m = Matrix(100, -1, 1);
-    m.setFunction(modulus);
-    // leave here for debug purpose.
-    // m.printMatrix();
+    std::vector<double> x = {-1, 0, 2, 3, 5}; 
+    std::vector<double> f = {1, 2, 4, 1, -3}; 
+    
+    Matrix m(x, f);
     std::vector<double> gamma = m.prognat();
     
     std::ofstream out("out.txt");
     m.printFunction(out, gamma);
-    std::cout << "\n";
+    out.close();
+    
+    std::cout << "Кубический сплайн построен и сохранен в out.txt\n";
     return 0;
 }
